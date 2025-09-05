@@ -14,12 +14,14 @@ This repository contains architecture diagrams for all production infrastructure
 ## Diagram Standards
 
 ### Individual Stack Diagrams
+
 - One diagram per stack in the `stacks/` directory
 - Named as `{stack-name}.md` containing Mermaid diagrams
 - Include all resources, their relationships, and key configurations
 - Show external dependencies and integrations
 
 ### Master Overview Diagram
+
 - Located in `master/overview.md`
 - Shows high-level architecture across all prod stacks
 - Highlights StackReferences and inter-stack dependencies
@@ -27,14 +29,28 @@ This repository contains architecture diagrams for all production infrastructure
 
 ## Mermaid Conventions
 
-- Use consistent colors and shapes for resource types
-- AWS resources: `#FF9900` (orange)
-- GCP resources: `#4285F4` (blue) 
-- Azure resources: `#0078D4` (blue)
-- Kubernetes: `#326CE5` (blue)
-- Databases: `#336791` (dark blue)
-- Load balancers: `#28A745` (green)
-- Storage: `#FFC107` (yellow)
+### Cloud Provider Icons & Colors
+- **AWS resources**: `#FF9900` (orange) with service-specific icons
+  - 🔑 IAM roles and security
+  - 🌐 VPC and networking
+  - 🐳 ECS and containers
+  - 💾 S3 and storage
+  - 📊 CloudWatch and monitoring
+- **GCP resources**: `#4285F4` (blue) with service-specific icons
+- **Azure resources**: `#0078D4` (blue) with service-specific icons
+- **Kubernetes**: `#326CE5` (blue) with ⚙️ icons
+- **Stack References**: `#9C27B0` (purple) with 🔗 icons
+- **External/Internet**: `#28A745` (green) with 🌍 icons
+
+### Icon Standards
+Use Unicode emojis to represent different resource types:
+- 🔑 IAM roles and security
+- 🌐 VPC, networking
+- 🐳 Containers, ECS
+- 💾 Storage (S3, databases)
+- 📊 Monitoring, logs
+- 🔗 Stack references
+- 🌍 Internet, external services
 
 ## Updating Diagrams
 
@@ -46,6 +62,5 @@ This repository contains architecture diagrams for all production infrastructure
 ## Automation
 
 The `scripts/` directory contains tools to help maintain diagrams:
-- `generate-stack-diagram.py` - Generate diagram from Pulumi stack export
+
 - `validate-diagrams.py` - Validate all Mermaid syntax
-- `update-master.py` - Update master overview from individual stack diagrams

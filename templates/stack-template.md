@@ -16,31 +16,50 @@ List of key resources deployed by this stack:
 
 ```mermaid
 graph TB
-    %% Define styles
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef gcp fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
-    classDef azure fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
+    %% Define cloud provider icon styles
+    classDef awsCompute fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsNetwork fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsStorage fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsDatabase fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsSecurity fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef gcpCompute fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef gcpNetwork fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef gcpStorage fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef azureCompute fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
+    classDef azureNetwork fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
     classDef k8s fill:#326CE5,stroke:#1e3a8a,stroke-width:2px,color:#fff
-    classDef db fill:#336791,stroke:#1e3a8a,stroke-width:2px,color:#fff
-    classDef lb fill:#28A745,stroke:#155724,stroke-width:2px,color:#fff
-    classDef storage fill:#FFC107,stroke:#856404,stroke-width:2px,color:#000
-    
+    classDef stackref fill:#9C27B0,stroke:#6A1B9A,stroke-width:2px,color:#fff
+
     %% Example structure - replace with actual resources
     subgraph "Stack: {stack-name}"
-        A[Resource A]:::aws
-        B[Resource B]:::aws
-        C[Database]:::db
+        subgraph "Compute Resources"
+            COMPUTE["🖥️ Compute Instance<br/>Type: t3.medium"]:::awsCompute
+        end
+        
+        subgraph "Network Resources"
+            VPC["🌐 VPC<br/>CIDR: 10.0.0.0/16"]:::awsNetwork
+            SUBNET["🔗 Subnet<br/>Public/Private"]:::awsNetwork
+        end
+        
+        subgraph "Storage Resources"
+            STORAGE["💾 S3 Bucket<br/>Encrypted"]:::awsStorage
+        end
     end
-    
-    subgraph "External Dependencies"
-        D[External Service]
-        E[Another Stack]
+
+    subgraph "Stack References"
+        STACKREF["📋 Other Stack<br/>StackReference"]:::stackref
     end
-    
-    A --> B
-    B --> C
-    A --> D
-    E --> A
+
+    subgraph "External Services"
+        EXTERNAL["☁️ External API<br/>Third-party"]
+    end
+
+    %% Infrastructure relationships
+    VPC --> SUBNET
+    SUBNET --> COMPUTE
+    COMPUTE --> STORAGE
+    STACKREF --> COMPUTE
+    COMPUTE --> EXTERNAL
 ```
 
 ## Configuration

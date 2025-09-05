@@ -6,7 +6,7 @@ The IAM stack provides essential Identity and Access Management resources for th
 ## Resources
 Key resources deployed by this stack:
 - **ecsClusterRole**: IAM role for ECS cluster management
-- **ecsInstanceRole**: IAM role for ECS container instances  
+- **ecsInstanceRole**: IAM role for ECS container instances
 - **frontendServiceRole**: IAM role for ECS frontend service tasks
 - **ecsClusterRolePolicy**: Policy for ECS cluster operations
 - **ecsInstanceRolePolicy**: Policy for ECS instance operations
@@ -20,62 +20,59 @@ Key resources deployed by this stack:
 
 ```mermaid
 graph TB
-    %% Define styles
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef iam fill:#FF6B6B,stroke:#C92A2A,stroke-width:2px,color:#fff
-    classDef policy fill:#4ECDC4,stroke:#0CA678,stroke-width:2px,color:#fff
-    classDef service fill:#45B7D1,stroke:#1976D2,stroke-width:2px,color:#fff
-    
+    %% Define AWS service icon styles
+    classDef awsSecurity fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsCompute fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsStorage fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsMonitoring fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsNetwork fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+
     subgraph "Stack: iam"
-        subgraph "ECS Cluster Management"
-            ECR[ecsClusterRole]:::iam
-            ECRP[ecsClusterRolePolicy]:::policy
+        subgraph "🔐 ECS Cluster Security"
+            ECR["🔑 ecsClusterRole<br/>Cluster Management"]:::awsSecurity
+            ECRP["📋 ecsClusterRolePolicy<br/>ECS + ELB Permissions"]:::awsSecurity
         end
-        
-        subgraph "ECS Instance Management"
-            EIR[ecsInstanceRole]:::iam
-            EIRP[ecsInstanceRolePolicy]:::policy
+
+        subgraph "🖥️ ECS Instance Security"
+            EIR["🔑 ecsInstanceRole<br/>Instance Management"]:::awsSecurity
+            EIRP["📋 ecsInstanceRolePolicy<br/>ECR + Logs + EC2"]:::awsSecurity
         end
-        
-        subgraph "Frontend Service"
-            FSR[frontendServiceRole]:::iam
-            FSRP[frontendServiceRolePolicy]:::policy
-        end
-        
-        subgraph "AWS Provider"
-            AWSP[AWS Provider us-east-1]:::aws
+
+        subgraph "🚀 Frontend Service Security"
+            FSR["🔑 frontendServiceRole<br/>Task Execution"]:::awsSecurity
+            FSRP["📋 frontendServiceRolePolicy<br/>Logs + ECR + S3"]:::awsSecurity
         end
     end
-    
-    subgraph "AWS Services"
-        ECS[ECS Service]:::service
-        EC2[EC2 Service]:::service
-        ECR_SVC[ECR Service]:::service
-        LOGS[CloudWatch Logs]:::service
-        S3[S3 Service]:::service
-        ELB[Elastic Load Balancing]:::service
+
+    subgraph "🌐 AWS Services"
+        ECS["🐳 Amazon ECS<br/>Container Service"]:::awsCompute
+        EC2["🖥️ Amazon EC2<br/>Compute Service"]:::awsCompute
+        ECR_SVC["📦 Amazon ECR<br/>Container Registry"]:::awsStorage
+        LOGS["📊 CloudWatch Logs<br/>Log Management"]:::awsMonitoring
+        S3["💾 Amazon S3<br/>Object Storage"]:::awsStorage
+        ELB["⚖️ Elastic Load Balancing<br/>Traffic Distribution"]:::awsNetwork
     end
-    
+
     %% Role-Policy relationships
     ECR --> ECRP
     EIR --> EIRP
     FSR --> FSRP
-    
-    %% Service principal relationships
-    ECS --> ECR
-    EC2 --> EIR
-    ECS --> FSR
-    
-    %% Policy permissions
+
+    %% Service trust relationships
+    ECS -.-> ECR
+    EC2 -.-> EIR
+    ECS -.-> FSR
+
+    %% Policy permissions (what each role can access)
     ECRP --> ECS
     ECRP --> EC2
     ECRP --> ELB
-    
+
     EIRP --> ECS
     EIRP --> LOGS
     EIRP --> ECR_SVC
     EIRP --> EC2
-    
+
     FSRP --> LOGS
     FSRP --> ECR_SVC
     FSRP --> S3
@@ -89,7 +86,7 @@ Key configuration values used by this stack:
 ## Outputs
 Key outputs that other stacks might reference:
 - **ecsClusterRole.arn**: ARN of the ECS cluster role
-- **ecsInstanceRole.arn**: ARN of the ECS instance role  
+- **ecsInstanceRole.arn**: ARN of the ECS instance role
 - **frontendServiceRole.arn**: ARN of the frontend service role
 
 ## IAM Policies Summary
@@ -99,7 +96,7 @@ Key outputs that other stacks might reference:
 - Elastic Load Balancing operations
 - ECS cluster and service management
 
-### ECS Instance Role Policy  
+### ECS Instance Role Policy
 - ECS cluster operations
 - CloudWatch Logs operations
 - ECR image operations
@@ -107,7 +104,7 @@ Key outputs that other stacks might reference:
 
 ### Frontend Service Role Policy
 - CloudWatch Logs operations
-- ECR image operations  
+- ECR image operations
 - S3 object operations
 
 ## Notes

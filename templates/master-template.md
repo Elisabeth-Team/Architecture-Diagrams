@@ -10,47 +10,54 @@ Description of how stacks relate to each other and share resources through Stack
 
 ```mermaid
 graph TB
-    %% Define styles
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef gcp fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
-    classDef azure fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
+    %% Define cloud provider icon styles
+    classDef awsCompute fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsNetwork fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsStorage fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsDatabase fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsSecurity fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef gcpCompute fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef gcpNetwork fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef gcpStorage fill:#4285F4,stroke:#1a73e8,stroke-width:2px,color:#fff
+    classDef azureCompute fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
+    classDef azureNetwork fill:#0078D4,stroke:#005a9e,stroke-width:2px,color:#fff
     classDef k8s fill:#326CE5,stroke:#1e3a8a,stroke-width:2px,color:#fff
-    classDef db fill:#336791,stroke:#1e3a8a,stroke-width:2px,color:#fff
-    classDef lb fill:#28A745,stroke:#155724,stroke-width:2px,color:#fff
-    classDef storage fill:#FFC107,stroke:#856404,stroke-width:2px,color:#000
-    classDef stack fill:#6C757D,stroke:#495057,stroke-width:3px,color:#fff
-    
+    classDef stackref fill:#9C27B0,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    classDef internet fill:#28A745,stroke:#155724,stroke-width:2px,color:#fff
+
     %% Example structure - replace with actual stacks and relationships
     subgraph "Production Environment"
-        subgraph "Stack 1"
-            S1A[Key Resource A]:::aws
-            S1B[Key Resource B]:::aws
+        subgraph "Foundation Stack"
+            VPC["🌐 VPC<br/>Network Foundation"]:::awsNetwork
+            IAM["🔐 IAM Roles<br/>Security"]:::awsSecurity
         end
-        
-        subgraph "Stack 2"
-            S2A[Key Resource C]:::gcp
-            S2B[Key Resource D]:::db
+
+        subgraph "Compute Stack"
+            ECS["🐳 ECS Cluster<br/>Container Orchestration"]:::awsCompute
+            TASKS["📦 Task Definitions<br/>Application Specs"]:::awsCompute
         end
-        
-        subgraph "Stack 3"
-            S3A[Key Resource E]:::k8s
-            S3B[Key Resource F]:::lb
+
+        subgraph "Data Stack"
+            RDS["🗄️ RDS Database<br/>Persistent Storage"]:::awsDatabase
+            S3["💾 S3 Buckets<br/>Object Storage"]:::awsStorage
         end
     end
-    
+
     subgraph "External Services"
-        EXT1[External API]
-        EXT2[Third-party Service]
+        INTERNET["🌍 Internet<br/>Public Access"]:::internet
+        EXTERNAL["☁️ Third-party APIs<br/>External Integration"]
     end
-    
+
     %% Stack relationships via StackReferences
-    S1A --> S2A
-    S2B --> S3A
-    S1B --> S3B
-    
+    IAM --> ECS
+    VPC --> ECS
+    ECS --> TASKS
+    TASKS --> RDS
+    TASKS --> S3
+
     %% External connections
-    S1A --> EXT1
-    S3A --> EXT2
+    INTERNET --> ECS
+    TASKS --> EXTERNAL
 ```
 
 ## Data Flow
