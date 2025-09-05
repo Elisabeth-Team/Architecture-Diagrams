@@ -63,7 +63,6 @@ graph TB
     RT --> RTA
     RT --> IGW
     IGW --> INTERNET
-
     %% Traffic flow
     SUBNET -.-> IGW
     IGW -.-> INTERNET

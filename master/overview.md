@@ -110,12 +110,14 @@ graph TB
 ## Data Flow & Architecture Patterns
 
 ### 1. 🔐 Identity & Access Management (IAM Stack)
+
 **Foundation Layer**: Provides security roles and policies for all ECS operations
 - **ECS Cluster Role**: Manages cluster-level operations and load balancer integration
 - **ECS Instance Role**: Handles container instance registration and ECR access
 - **Frontend Service Role**: Application-level permissions for logging, ECR, and S3
 
 ### 2. 🌐 Network Foundation (Network Stack)
+
 **Infrastructure Layer**: Establishes secure, scalable networking
 - **VPC Isolation**: 10.0.0.0/16 private network with internet connectivity
 - **Public Subnet**: Hosts Fargate tasks with public IP assignment
@@ -156,6 +158,7 @@ graph LR
 - **Public Subnet**: Controlled internet access for frontend services
 
 ### Identity Security
+
 - **Principle of Least Privilege**: Each role has minimal required permissions
 - **Service Isolation**: Separate roles for cluster, instance, and application concerns
 - **Cross-Stack Security**: IAM roles shared securely via StackReferences
