@@ -7,8 +7,12 @@ This repository contains architecture diagrams for all production infrastructure
 ```
 ├── stacks/           # Individual stack diagrams
 ├── master/           # Master overview diagrams
+├── images/           # Auto-generated PNG images
+│   ├── stacks/       # PNG versions of stack diagrams
+│   └── master/       # PNG versions of master diagrams
 ├── templates/        # Template files for new diagrams
-└── scripts/          # Automation scripts
+├── scripts/          # Automation scripts
+└── .github/workflows/ # CI/CD automation
 ```
 
 ## Diagram Standards
@@ -45,7 +49,41 @@ This repository contains architecture diagrams for all production infrastructure
 
 ## Automation
 
+### Scripts
 The `scripts/` directory contains tools to help maintain diagrams:
 - `generate-stack-diagram.py` - Generate diagram from Pulumi stack export
 - `validate-diagrams.py` - Validate all Mermaid syntax
 - `update-master.py` - Update master overview from individual stack diagrams
+
+### GitHub Actions
+Automated workflows handle diagram maintenance:
+
+#### PNG Generation (`generate-diagrams.yml`)
+- **Triggers**: Push to main or PR with diagram changes
+- **Actions**: 
+  - Validates Mermaid syntax
+  - Generates high-quality PNG images from all diagrams
+  - Commits PNGs to `images/` directory on main branch
+  - Uploads PNGs as artifacts for PRs
+- **Image specs**: 1200x800px (stacks), 1400x1000px (master), white background
+
+#### Validation (`validate-diagrams.yml`)
+- **Triggers**: Push/PR to main/develop branches
+- **Actions**:
+  - Validates all Mermaid diagram syntax
+  - Tests diagram rendering
+  - Checks for common syntax errors
+
+### Usage Examples
+
+**Generate diagrams locally:**
+```bash
+python scripts/generate-stack-diagram.py my-stack-name
+python scripts/update-master.py
+python scripts/validate-diagrams.py
+```
+
+**Access PNG images:**
+- Stack diagrams: `images/stacks/{stack-name}.png`
+- Master overview: `images/master/overview.png`
+- Images are auto-generated on every diagram update
