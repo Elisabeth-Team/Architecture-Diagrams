@@ -1,14 +1,15 @@
 # Production Infrastructure Overview
 
 ## Architecture Summary
-Complete production ECS infrastructure consisting of three interconnected stacks providing a full containerized application platform. The architecture follows best practices with separated concerns for identity management, networking, and compute resources.
+Complete production infrastructure consisting of four interconnected stacks providing identity management, dual networking approaches, container orchestration, and storage. The architecture demonstrates both a simple networking setup and a more comprehensive VPC design with public/private subnet segmentation.
 
 ## Stack Summary
 - **iam**: 7 IAM resources (3 roles, 3 policies, 1 provider) - Identity & Access Management
-- **network**: 6 networking resources (VPC, subnet, IGW, route table, security group) - Network Foundation
+- **network**: 6 networking resources (VPC, subnet, IGW, route table, security group) - Simple Network Foundation
+- **networking_and_bucket**: 15 resources (VPC, subnets, NAT, S3) - Comprehensive Network & Storage
 - **cluster**: 4 ECS resources (cluster, task definition, service, log group) - Container Orchestration
 
-**Total**: 17 production resources across 3 stacks with 2 StackReferences for cross-stack integration
+**Total**: 32 production resources across 4 stacks with 2 StackReferences for cross-stack integration
 
 ## Master Architecture Diagram
 
@@ -33,12 +34,38 @@ graph TB
             end
         end
 
-        subgraph "🌐 Network Stack - Foundation"
-            subgraph "VPC Infrastructure"
-                VPC["🏢 ECS VPC<br/>10.0.0.0/16"]:::awsNetwork
-                SUBNET["🌍 Public Subnet<br/>Auto-assign Public IP"]:::awsNetwork
-                IGW["🚪 Internet Gateway<br/>Public Access"]:::awsNetwork
-                SG["🔒 Security Group<br/>ECS Rules"]:::awsSecurity
+        subgraph "🌐 Network Stack - Simple Foundation"
+            subgraph "Basic VPC Infrastructure"
+                VPC_SIMPLE["🏢 ECS VPC<br/>10.0.0.0/16<br/>Basic Setup"]:::awsNetwork
+                SUBNET_SIMPLE["🌍 Public Subnet<br/>ECS Tasks"]:::awsNetwork
+                IGW_SIMPLE["🚪 Internet Gateway<br/>Simple Access"]:::awsNetwork
+                SG_SIMPLE["🔒 Security Group<br/>ECS Rules"]:::awsSecurity
+            end
+        end
+
+        subgraph "🌐 Networking & Bucket Stack - Comprehensive Infrastructure"
+            subgraph "Advanced VPC Architecture"
+                VPC_ADV["🏢 Main VPC<br/>10.29.0.0/16<br/>Full Featured"]:::awsNetwork
+                
+                subgraph "Public Tier"
+                    PUB1["🌐 Public Subnet 1<br/>10.29.1.0/24"]:::awsNetwork
+                    PUB2["🌐 Public Subnet 2<br/>10.29.2.0/24"]:::awsNetwork
+                end
+                
+                subgraph "Private Tier"
+                    PRIV1["🏠 Private Subnet<br/>10.29.10.0/24"]:::awsNetwork
+                end
+                
+                subgraph "NAT Infrastructure"
+                    NAT["🔄 NAT Gateway<br/>54.173.5.81"]:::awsNetwork
+                    EIP["📍 Elastic IP<br/>NAT Gateway"]:::awsNetwork
+                end
+                
+                IGW_ADV["🚪 Internet Gateway<br/>Advanced Access"]:::awsNetwork
+            end
+            
+            subgraph "Storage Layer"
+                S3["💾 S3 Bucket<br/>Object Storage<br/>AES256 Encrypted"]:::awsStorage
             end
         end
 
@@ -52,7 +79,7 @@ graph TB
 
             subgraph "Cross-Stack References"
                 IAM_REF["🔗 IAM StackRef<br/>Role ARNs"]:::stackref
-                NET_REF["🔗 Network StackRef<br/>VPC Resources"]:::stackref
+                NET_REF["🔗 Network StackRef<br/>Simple VPC Resources"]:::stackref
             end
         end
     end
@@ -61,7 +88,6 @@ graph TB
         ECR_SVC["📦 Amazon ECR<br/>Container Registry"]:::awsStorage
         CW["📊 CloudWatch<br/>Monitoring"]:::awsMonitoring
         ELB["⚖️ Load Balancing<br/>Future Enhancement"]:::awsNetwork
-        S3["💾 S3 Storage<br/>Object Storage"]:::awsStorage
     end
 
     subgraph "🌍 External"
@@ -73,23 +99,32 @@ graph TB
     IAM_REF -.-> ECR
     IAM_REF -.-> EIR
     IAM_REF -.-> FSR
-    NET_REF -.-> VPC
-    NET_REF -.-> SUBNET
-    NET_REF -.-> SG
+    NET_REF -.-> VPC_SIMPLE
+    NET_REF -.-> SUBNET_SIMPLE
+    NET_REF -.-> SG_SIMPLE
 
-    %% Infrastructure relationships
-    VPC --> SUBNET
-    VPC --> IGW
-    SUBNET --> SG
-    IGW --> INTERNET
+    %% Simple Network Stack relationships
+    VPC_SIMPLE --> SUBNET_SIMPLE
+    VPC_SIMPLE --> IGW_SIMPLE
+    SUBNET_SIMPLE --> SG_SIMPLE
+    IGW_SIMPLE --> INTERNET
+
+    %% Advanced Network Stack relationships
+    VPC_ADV --> PUB1
+    VPC_ADV --> PUB2
+    VPC_ADV --> PRIV1
+    VPC_ADV --> IGW_ADV
+    EIP --> NAT
+    NAT --> PUB1
+    IGW_ADV --> INTERNET
 
     %% ECS relationships
     CLUSTER --> SERVICE
     SERVICE --> TASKDEF
     TASKDEF --> LOGS
 
-    %% Service execution relationships
-    SERVICE --> SUBNET
+    %% Service execution relationships (uses simple network)
+    SERVICE --> SUBNET_SIMPLE
     SERVICE --> FSR
     TASKDEF --> FSR
 
@@ -101,10 +136,17 @@ graph TB
     EIR --> ECR_SVC
     LOGS --> CW
 
-    %% User traffic flow
+    %% User traffic flow (through simple network currently)
     USERS --> INTERNET
-    INTERNET --> IGW
-    IGW --> SERVICE
+    INTERNET --> IGW_SIMPLE
+    IGW_SIMPLE --> SERVICE
+
+    %% Advanced network potential connections (dotted for future use)
+    INTERNET -.-> IGW_ADV
+    IGW_ADV -.-> PUB1
+    IGW_ADV -.-> PUB2
+    PRIV1 -.-> NAT
+    NAT -.-> IGW_ADV
 ```
 
 ## Data Flow & Architecture Patterns
@@ -116,16 +158,21 @@ graph TB
 - **ECS Instance Role**: Handles container instance registration and ECR access
 - **Frontend Service Role**: Application-level permissions for logging, ECR, and S3
 
-### 2. 🌐 Network Foundation (Network Stack)
+### 2. 🌐 Dual Network Architecture
 
-**Infrastructure Layer**: Establishes secure, scalable networking
-- **VPC Isolation**: 10.0.0.0/16 private network with internet connectivity
-- **Public Subnet**: Hosts Fargate tasks with public IP assignment
-- **Security Groups**: Network-level access control for services
-- **Internet Gateway**: Enables public internet access for applications
+**Current Active Network (Simple)**:
+- **network stack**: Basic VPC (10.0.0.0/16) used by ECS cluster
+- **Single public subnet**: Hosts current Fargate tasks
+- **Simple internet connectivity**: Direct IGW access
+
+**Advanced Network (Available)**:
+- **networking_and_bucket stack**: Comprehensive VPC (10.29.0.0/16)
+- **Public/Private subnet separation**: Production-ready architecture
+- **NAT Gateway**: Secure outbound access for private resources
+- **S3 Storage**: Integrated object storage with encryption
 
 ### 3. 🐳 Container Orchestration (Cluster Stack)
-**Application Layer**: Runs containerized workloads using cross-stack resources
+**Application Layer**: Runs containerized workloads using simple network stack
 - **ECS Fargate**: Serverless container execution
 - **Task Definitions**: Container specifications with IAM role integration
 - **Services**: Maintains desired container count with network placement
@@ -136,29 +183,45 @@ graph TB
 ```mermaid
 graph LR
     classDef stack fill:#6C757D,stroke:#495057,stroke-width:3px,color:#fff
+    classDef active fill:#28A745,stroke:#155724,stroke-width:3px,color:#fff
+    classDef available fill:#FFC107,stroke:#E0A800,stroke-width:3px,color:#fff
 
     IAM["🔐 IAM Stack<br/>Foundation"]:::stack
-    NETWORK["🌐 Network Stack<br/>Foundation"]:::stack
+    NETWORK["🌐 Network Stack<br/>Active Network"]:::active
+    NETBUCKET["🌐 Networking & Bucket<br/>Advanced Network"]:::available
     CLUSTER["🐳 Cluster Stack<br/>Application"]:::stack
 
     IAM --> CLUSTER
     NETWORK --> CLUSTER
+    NETBUCKET -.-> CLUSTER
 ```
 
 ### Cross-Stack Integration
 - **Cluster → IAM**: Uses StackReference to access role ARNs
-- **Cluster → Network**: Uses StackReference to access VPC, subnet, and security group IDs
+- **Cluster → Network**: Uses StackReference to access simple VPC resources
+- **Networking & Bucket**: Available for future migration or additional services
 - **No circular dependencies**: Clean separation of concerns
+
+## Network Architecture Comparison
+
+| Feature | Simple Network Stack | Networking & Bucket Stack |
+|---------|---------------------|---------------------------|
+| **VPC CIDR** | 10.0.0.0/16 | 10.29.0.0/16 |
+| **Subnets** | 1 Public | 2 Public + 1 Private |
+| **NAT Gateway** | ❌ None | ✅ With Elastic IP |
+| **Storage** | ❌ None | ✅ S3 Bucket |
+| **Current Usage** | ✅ Active (ECS) | ⏳ Available |
+| **Architecture** | Basic | Production-ready |
 
 ## Security Boundaries
 
 ### Network Security
-- **VPC Isolation**: All resources within private 10.0.0.0/16 network
+- **Active VPC Isolation**: ECS resources in 10.0.0.0/16 network
+- **Available Advanced Security**: Public/private subnet separation in 10.29.0.0/16
 - **Security Groups**: Service-level firewall rules
-- **Public Subnet**: Controlled internet access for frontend services
+- **NAT Gateway**: Secure outbound access (available in advanced network)
 
 ### Identity Security
-
 - **Principle of Least Privilege**: Each role has minimal required permissions
 - **Service Isolation**: Separate roles for cluster, instance, and application concerns
 - **Cross-Stack Security**: IAM roles shared securely via StackReferences
@@ -168,54 +231,92 @@ graph LR
 - **Task-Level IAM**: Individual container permissions via task roles
 - **Log Isolation**: Dedicated log groups per service
 
-## Scalability & Expansion
+### Storage Security
+- **S3 Encryption**: AES256 server-side encryption (available)
+- **Access Control**: Default bucket policies block public access
+- **Regional Storage**: Data stored in us-east-1 region
 
-### Current Capacity
+## Migration & Expansion Opportunities
+
+### Network Migration Path
+1. **Current State**: ECS using simple network stack (10.0.0.0/16)
+2. **Migration Option**: Move ECS to advanced network stack (10.29.0.0/16)
+3. **Benefits**: Private subnet placement, NAT Gateway, S3 integration
+
+### Scalability Patterns
+
+#### Current Capacity
 - **ECS Service**: 1 frontend task (can scale horizontally)
-- **Network**: Single public subnet (can add private subnets)
+- **Simple Network**: Single public subnet
+- **Advanced Network**: Multi-subnet architecture ready
 - **Compute**: Fargate serverless (auto-scaling available)
 
-### Expansion Patterns
-- **Multi-AZ Deployment**: Add subnets in additional availability zones
-- **Load Balancing**: Integrate Application Load Balancer for high availability
-- **Service Mesh**: Add additional ECS services with service discovery
-- **Database Layer**: Add RDS or DynamoDB with private subnet placement
+#### Expansion Opportunities
+- **Multi-AZ Deployment**: Leverage advanced network's subnet architecture
+- **Load Balancing**: Integrate ALB with advanced network's public subnets
+- **Database Layer**: Use private subnets for RDS/DynamoDB
+- **Microservices**: Deploy additional services across both networks
 
 ## Monitoring & Observability
 
 ### Current Monitoring
 - **CloudWatch Logs**: Container application logs
 - **ECS Metrics**: Service and task-level metrics
-- **VPC Flow Logs**: Network traffic monitoring (can be enabled)
+- **VPC Flow Logs**: Available for both networks
 
 ### Monitoring Expansion
-- **Application Performance Monitoring**: Add APM tools
-- **Custom Metrics**: Application-specific CloudWatch metrics
-- **Alerting**: CloudWatch alarms for service health
-- **Distributed Tracing**: X-Ray integration for request tracing
-
-## Disaster Recovery & High Availability
-
-### Current State
-- **Single AZ**: Resources in one availability zone
-- **Stateless Applications**: Easy to recreate and scale
-- **Infrastructure as Code**: Complete environment reproducible via Pulumi
-
-### HA Improvements
-- **Multi-AZ**: Deploy across multiple availability zones
-- **Load Balancing**: Distribute traffic across healthy instances
-- **Auto Scaling**: Automatic capacity adjustment based on demand
-- **Database Replication**: Add read replicas for data layer
+- **Cross-Network Monitoring**: Monitor both VPC environments
+- **S3 Access Logging**: Track storage usage patterns
+- **NAT Gateway Metrics**: Monitor outbound traffic costs
+- **Custom Dashboards**: Unified view across all stacks
 
 ## Cost Optimization
 
 ### Current Costs
 - **Fargate**: Pay-per-use serverless compute
-- **VPC**: No additional charges for basic networking
-- **CloudWatch**: Log storage and basic metrics
+- **Simple VPC**: No additional networking charges
+- **Advanced VPC**: NAT Gateway hourly + data processing fees
+- **S3**: Pay-per-use storage (available)
 
-### Optimization Opportunities
-- **Reserved Capacity**: For predictable workloads
-- **Spot Instances**: For fault-tolerant batch workloads
-- **Log Retention**: Optimize CloudWatch log retention policies
-- **Resource Right-Sizing**: Monitor and adjust CPU/memory allocations
+### Optimization Strategies
+- **Network Consolidation**: Migrate to single network architecture
+- **NAT Gateway Usage**: Monitor data transfer costs
+- **S3 Storage Classes**: Use appropriate classes for access patterns
+- **Resource Right-Sizing**: Monitor and adjust allocations
+
+## Disaster Recovery & High Availability
+
+### Current State
+- **Single AZ**: Resources primarily in one availability zone
+- **Dual Network Options**: Flexibility for failover scenarios
+- **Stateless Applications**: Easy to recreate and scale
+- **Infrastructure as Code**: Complete environment reproducible via Pulumi
+
+### HA Improvements
+- **Multi-AZ**: Deploy across multiple availability zones using advanced network
+- **Load Balancing**: Distribute traffic across healthy instances
+- **Cross-Network Redundancy**: Utilize both network stacks for resilience
+- **Database Replication**: Add read replicas in private subnets
+
+## Recommendations
+
+### Short Term
+1. **Evaluate Network Usage**: Determine if advanced network features are needed
+2. **Cost Analysis**: Compare simple vs advanced network costs
+3. **Migration Planning**: Plan ECS migration to advanced network if beneficial
+
+### Long Term
+1. **Network Consolidation**: Standardize on single network architecture
+2. **Multi-AZ Expansion**: Leverage advanced network for high availability
+3. **Service Mesh**: Implement service discovery across network boundaries
+4. **Monitoring Integration**: Unified observability across all stacks
+
+## Notes
+This infrastructure demonstrates:
+- **Flexible Architecture**: Multiple networking options for different use cases
+- **Proper Separation**: Clean stack boundaries with cross-stack references
+- **Scalability Options**: Both simple and advanced networking patterns
+- **Security Best Practices**: IAM roles, VPC isolation, encryption
+- **Cost Awareness**: Options for both cost-optimized and feature-rich deployments
+
+The dual network approach provides flexibility for different workload requirements while maintaining clean architectural boundaries.
