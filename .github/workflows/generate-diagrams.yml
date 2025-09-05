@@ -41,7 +41,7 @@ jobs:
               echo "Processing $filename..."
               sed -n '/```mermaid/,/```/p' "$file" | sed '1d;$d' > "temp_${filename}.mmd"
               if [ -s "temp_${filename}.mmd" ]; then
-                mmdc -i "temp_${filename}.mmd" -o "images/stacks/${filename}.png" -w 1200 -H 800 --backgroundColor white
+                mmdc -i "temp_${filename}.mmd" -o "images/stacks/${filename}.png" -w 1200 -H 800 --backgroundColor white --no-sandbox
               fi
               rm -f "temp_${filename}.mmd"
             fi
