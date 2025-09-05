@@ -1,0 +1,37 @@
+name: Validate Architecture Diagrams
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Make scripts executable
+      run: chmod +x scripts/*.py
+    
+    - name: Validate diagram syntax
+      run: python scripts/validate-diagrams.py
+    
+    - name: Check for outdated diagrams
+      run: |
+        echo "Checking if diagrams are up to date..."
+        # Add logic here to check if diagrams match current infrastructure
+        # This could involve calling Pulumi APIs or checking timestamps
+        
+    - name: Render Mermaid diagrams (optional)
+      uses: nikeee/mermaid-action@v1
+      with:
+        files: 'stacks/*.md master/*.md'
+      continue-on-error: true
