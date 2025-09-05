@@ -20,55 +20,52 @@ Key resources deployed by this stack:
 
 ```mermaid
 graph TB
-    %% Define styles
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef vpc fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
-    classDef subnet fill:#7ED321,stroke:#5BA517,stroke-width:2px,color:#fff
-    classDef gateway fill:#F5A623,stroke:#D4941E,stroke-width:2px,color:#fff
-    classDef security fill:#D0021B,stroke:#A8001A,stroke-width:2px,color:#fff
-    classDef route fill:#9013FE,stroke:#6A0DAD,stroke-width:2px,color:#fff
-    
+    %% Define AWS service icon styles
+    classDef awsNetwork fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef awsSecurity fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef internet fill:#28A745,stroke:#155724,stroke-width:2px,color:#fff
+
     subgraph "Stack: network"
-        subgraph "VPC: 10.0.0.0/16"
-            VPC[ecsVpc<br/>10.0.0.0/16]:::vpc
+        subgraph "🌐 VPC Infrastructure"
+            VPC["🏢 ecsVpc<br/>10.0.0.0/16<br/>DNS: Enabled"]:::awsNetwork
             
-            subgraph "Public Subnet"
-                SUBNET[ecsPublicSubnet<br/>Public Subnet]:::subnet
-                SG[ecsSecurityGroup<br/>Security Group]:::security
+            subgraph "🔗 Subnet Configuration"
+                SUBNET["🌍 ecsPublicSubnet<br/>Public Subnet<br/>Auto-assign Public IP"]:::awsNetwork
             end
             
-            subgraph "Internet Connectivity"
-                IGW[ecsInternetGateway<br/>Internet Gateway]:::gateway
-                RT[ecsRouteTable<br/>Route Table]:::route
-                RTA[ecsRouteTableAssociation<br/>Route Association]:::route
+            subgraph "🛡️ Security"
+                SG["🔒 ecsSecurityGroup<br/>ECS Security Group<br/>Ingress/Egress Rules"]:::awsSecurity
             end
         end
-        
-        subgraph "AWS Provider"
-            AWSP[AWS Provider us-east-1<br/>v6.13.3]:::aws
+
+        subgraph "🚪 Internet Connectivity"
+            IGW["🌐 ecsInternetGateway<br/>Internet Gateway<br/>Public Access"]:::awsNetwork
+            RT["📋 ecsRouteTable<br/>Route Table<br/>0.0.0.0/0 → IGW"]:::awsNetwork
+            RTA["🔗 ecsRouteTableAssociation<br/>Subnet Association"]:::awsNetwork
         end
     end
-    
-    subgraph "Internet"
-        INTERNET[Internet<br/>0.0.0.0/0]:::gateway
+
+    subgraph "🌍 External"
+        INTERNET["🌐 Internet<br/>0.0.0.0/0<br/>Public Traffic"]:::internet
     end
-    
+
     %% VPC relationships
     VPC --> SUBNET
     VPC --> IGW
     VPC --> RT
-    
+    VPC --> SG
+
     %% Subnet relationships
-    SUBNET --> SG
     SUBNET --> RTA
-    
+    SUBNET --> SG
+
     %% Routing relationships
     RT --> RTA
     RT --> IGW
     IGW --> INTERNET
-    
-    %% Provider relationships
-    AWSP --> VPC
+    %% Traffic flow
+    SUBNET -.-> IGW
+    IGW -.-> INTERNET
 ```
 
 ## Configuration
