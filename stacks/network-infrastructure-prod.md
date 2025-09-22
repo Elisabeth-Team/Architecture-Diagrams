@@ -6,15 +6,15 @@ This diagram shows the network infrastructure resources deployed in the `network
 graph TB
     subgraph "AWS Region: us-east-1"
         subgraph "VPC: ecs-vpc (10.0.0.0/16)"
-            VPC[VPC<br/>vpc-0c14c65de928961e3<br/>10.0.0.0/16]
+            VPC[VPC<br/>vpc_id<br/>10.0.0.0/16]
             
             subgraph "Availability Zone: us-east-1b"
-                SUBNET[Public Subnet<br/>subnet-01d1c207006d52e59<br/>10.0.1.0/24]
+                SUBNET[Public Subnet<br/>subnet_id<br/>10.0.1.0/24]
             end
             
-            IGW[Internet Gateway<br/>igw-08fbc3e9c0a7e57fd]
-            RT[Route Table<br/>rtb-0f5f08fe751ed9044]
-            SG[Security Group<br/>sg-011d6da5dcd69ec9f<br/>ecs-security-group]
+            IGW[Internet Gateway<br/>igw_id]
+            RT[Route Table<br/>rtb_id]
+            SG[Security Group<br/>sg_id<br/>ecs-security-group]
         end
     end
     
@@ -57,11 +57,11 @@ graph TB
 ## Resources Summary
 
 ### Core Network Components
-- **VPC**: `vpc-0c14c65de928961e3` (10.0.0.0/16)
-- **Public Subnet**: `subnet-01d1c207006d52e59` (10.0.1.0/24) in us-east-1b
-- **Internet Gateway**: `igw-08fbc3e9c0a7e57fd`
-- **Route Table**: `rtb-0f5f08fe751ed9044`
-- **Security Group**: `sg-011d6da5dcd69ec9f`
+- **VPC**: `vpc_id` (10.0.0.0/16)
+- **Public Subnet**: `subnet_id` (10.0.1.0/24) in us-east-1b
+- **Internet Gateway**: `igw_id`
+- **Route Table**: `rtb_id`
+- **Security Group**: `sg_id`
 
 ### Security Configuration
 - **Ingress Rules**: HTTP (port 80) and SSH (port 22) from anywhere (0.0.0.0/0)

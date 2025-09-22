@@ -6,18 +6,18 @@ This diagram shows the IAM roles and policies deployed in the `iam-infrastructur
 graph TB
     subgraph "AWS IAM"
         subgraph "ECS Instance Role"
-            EIR[IAM Role<br/>ecsInstanceRole-ee19158]
-            EIRP[Role Policy<br/>ecsInstanceRolePolicy-3efbbc2]
+            EIR[IAM Role<br/>ecsInstanceRole_id]
+            EIRP[Role Policy<br/>ecsInstanceRolePolicy_id]
         end
         
         subgraph "ECS Cluster Role"
-            ECR[IAM Role<br/>ecsClusterRole-85384ad]
-            ECRP[Role Policy<br/>ecsClusterRolePolicy-e15a697]
+            ECR[IAM Role<br/>ecsClusterRole_id]
+            ECRP[Role Policy<br/>ecsClusterRolePolicy_id]
         end
         
         subgraph "Frontend Service Role"
-            FSR[IAM Role<br/>frontendServiceRole-ba67bd1]
-            FSRP[Role Policy<br/>frontendServiceRolePolicy-f16a409]
+            FSR[IAM Role<br/>frontendServiceRole_id]
+            FSRP[Role Policy<br/>frontendServiceRolePolicy_id]
         end
     end
     
@@ -75,15 +75,15 @@ graph TB
 ## Resources Summary
 
 ### IAM Roles
-- **ECS Instance Role**: `ecsInstanceRole-ee19158`
+- **ECS Instance Role**: `ecsInstanceRole_id`
   - Trust: EC2 service
   - Purpose: EC2 instances running ECS agent
   
-- **ECS Cluster Role**: `ecsClusterRole-85384ad`
+- **ECS Cluster Role**: `ecsClusterRole_id`
   - Trust: ECS service
   - Purpose: ECS cluster management operations
   
-- **Frontend Service Role**: `frontendServiceRole-ba67bd1`
+- **Frontend Service Role**: `frontendServiceRole_id`
   - Trust: ECS service
   - Purpose: Frontend task execution and logging
 

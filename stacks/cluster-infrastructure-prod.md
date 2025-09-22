@@ -14,7 +14,7 @@ graph TB
             CLUSTER[ECS Cluster<br/>my-ecs-cluster]
             
             subgraph "Frontend Service"
-                SERVICE[ECS Service<br/>frontendService-7ab8c00<br/>Desired: 1 task]
+                SERVICE[ECS Service<br/>frontendService_id<br/>Desired: 1 task]
                 TASK_DEF[Task Definition<br/>frontend-task:2<br/>CPU: 256, Memory: 512MB]
                 
                 subgraph "Container"
@@ -29,14 +29,14 @@ graph TB
     end
     
     subgraph "Network (from network-infrastructure)"
-        VPC_REF[VPC<br/>vpc-0c14c65de928961e3]
-        SUBNET_REF[Public Subnet<br/>subnet-01d1c207006d52e59]
-        SG_REF[Security Group<br/>sg-011d6da5dcd69ec9f]
+        VPC_REF[VPC<br/>vpc_id]
+        SUBNET_REF[Public Subnet<br/>subnet_id]
+        SG_REF[Security Group<br/>sg_id]
     end
     
     subgraph "IAM (from iam-infrastructure)"
-        EXEC_ROLE[Execution Role<br/>frontendServiceRole-ba67bd1]
-        TASK_ROLE[Task Role<br/>frontendServiceRole-ba67bd1]
+        EXEC_ROLE[Execution Role<br/>frontendServiceRole_id]
+        TASK_ROLE[Task Role<br/>frontendServiceRole_id]
     end
     
     INTERNET((Internet))
@@ -96,7 +96,7 @@ graph TB
 
 ### ECS Resources
 - **Cluster**: `my-ecs-cluster`
-- **Service**: `frontendService-7ab8c00`
+- **Service**: `frontendService_id`
   - Desired Count: 1 task
   - Launch Type: AWS Fargate
   - Platform Version: LATEST
@@ -126,8 +126,8 @@ graph TB
 - **Security Group**: Allows HTTP (80) and SSH (22) from internet
 
 ### IAM Configuration
-- **Execution Role**: `frontendServiceRole-ba67bd1` (for pulling images, logging)
-- **Task Role**: `frontendServiceRole-ba67bd1` (for application permissions)
+- **Execution Role**: `frontendServiceRole_id` (for pulling images, logging)
+- **Task Role**: `frontendServiceRole_id` (for application permissions)
 
 ## Stack Dependencies
 

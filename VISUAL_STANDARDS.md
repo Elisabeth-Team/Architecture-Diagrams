@@ -50,10 +50,10 @@ classDef outputs fill:#FF6600,stroke:#232F3E,stroke-width:2px,color:#fff     /* 
 
 #### Examples
 ```mermaid
-VPC[VPC<br/>vpc-0c14c65de928961e3<br/>10.0.0.0/16]
-SUBNET[Public Subnet<br/>subnet-01d1c207006d52e59<br/>10.0.1.0/24]
-ROLE[IAM Role<br/>ecsInstanceRole-ee19158]
-SERVICE[ECS Service<br/>frontendService-7ab8c00<br/>Desired: 1 task]
+VPC[VPC<br/>vpc_id<br/>10.0.0.0/16]
+SUBNET[Public Subnet<br/>subnet_id<br/>10.0.1.0/24]
+ROLE[IAM Role<br/>ecsInstanceRole_id]
+SERVICE[ECS Service<br/>frontendService_id<br/>Desired: 1 task]
 ```
 
 ### Connection Types
