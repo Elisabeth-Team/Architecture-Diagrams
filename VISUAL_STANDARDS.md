@@ -57,6 +57,7 @@ classDef outputs fill:#FF6600,stroke:#232F3E,stroke-width:2px,color:#fff     /* 
 #### Examples
 
 ```mermaid
+graph TB
 VPC[VPC<br/>vpc_id<br/>10.0.0.0/16]
 SUBNET[Public Subnet<br/>subnet_id<br/>10.0.1.0/24]
 ROLE[IAM Role<br/>ecsInstanceRole_id]
