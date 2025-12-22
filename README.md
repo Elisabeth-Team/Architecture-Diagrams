@@ -6,9 +6,9 @@ This repository contains comprehensive architecture diagrams for all production 
 
 ### Production Environment
 
-- **IAM Infrastructure Stack**: Identity and access management
-- **Network Infrastructure Stack**: VPC, subnets, security groups, routing
-- **Cluster Infrastructure Stack**: ECS clusters, services, and containerized applications
+- **IAM Infrastructure Stack** (`iam-infrastructure/iaminfra`): Identity and access management for ECS (available but unused)
+- **Network Infrastructure Stack** (`network-infrastructure/networkstack`): VPC, subnets, security groups, routing for ECS (available but unused)
+- **Server Infrastructure Stack** (`server-infra/prod`): ACME server on EC2 with dedicated VPC (active)
 
 ## 📁 Repository Structure
 
@@ -16,16 +16,12 @@ This repository contains comprehensive architecture diagrams for all production 
 ├── stacks/                    # Individual stack diagrams
 │   ├── iam-infrastructure-prod.md
 │   ├── network-infrastructure-prod.md
-│   └── cluster-infrastructure-prod.md
+│   └── server-infra-prod.md
 ├── master/                    # Master overview diagrams
 │   └── prod-infrastructure-overview.md
 ├── templates/                 # Template files for new diagrams
 │   ├── stack-template.md
 │   └── master-template.md
-├── scripts/                   # Automation and validation scripts
-│   ├── validate-diagrams.py
-│   ├── update-helper.py
-│   └── generate-diagram.py
 ├── VISUAL_STANDARDS.md        # Comprehensive visual standards
 ├── UPDATE_PROCEDURES.md       # Diagram update procedures
 └── README.md                  # This file
@@ -161,19 +157,24 @@ python scripts/validate-diagrams.py stacks/cluster-infrastructure-prod.md
 
 ### Production Environment Overview
 
-- **AWS Account**: REDACTED
+- **AWS Account**: 052848974346
 - **Region**: us-east-1
-- **Stacks**: 3 (IAM, Network, Cluster)
-- **Resources**: 25+ managed resources
-- **Architecture**: Containerized web application on ECS Fargate
+- **Stacks**: 3 (IAM, Network, Server)
+- **Resources**: 26 managed resources across all stacks
+- **Architecture**: ACME server on EC2 + Available ECS infrastructure
 
 ### Key Components
 
-- **Networking**: VPC with public subnet and internet gateway
-- **Compute**: ECS cluster running Nginx container on Fargate
-- **Security**: IAM roles with least-privilege policies, security groups
-- **Monitoring**: CloudWatch Logs with 14-day retention
-- **Repository**: `github.com/lichtie/prod-infrastructure`
+**Active Infrastructure:**
+- **Compute**: EC2 t3.small instance running ACME server
+- **Networking**: Dedicated VPC (10.0.0.0/16) with public subnet and internet gateway
+- **Security**: Security group with restricted SSH access, open HTTPS/HTTP for ACME protocol
+- **Purpose**: SSL/TLS certificate management via ACME protocol
+
+**Available Infrastructure (Unused):**
+- **IAM**: Three ECS-related IAM roles ready for future deployments
+- **Networking**: VPC (10.0.0.0/16) with public subnet ready for ECS deployments
+- **Repository**: `github.com/lichtie/prod-infrastructure` (IAM & Network stacks)
 
 ## 📞 Support & Contribution
 
