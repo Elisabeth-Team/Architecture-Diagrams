@@ -4,103 +4,107 @@ This diagram shows the ECS cluster and containerized applications deployed in th
 
 ```mermaid
 graph TB
-    subgraph "External Dependencies"
-        IAM_STACK[IAM Infrastructure Stack]
-        NET_STACK[Network Infrastructure Stack]
+    INTERNET((Internet<br/>Public Access))
+
+    subgraph "Stack Dependencies"
+        IAM_STACK[IAM Infrastructure Stack<br/>elisabeth-demo/iam-infrastructure/prod]
+        NET_STACK[Network Infrastructure Stack<br/>elisabeth-demo/network-infrastructure/prod]
     end
     
     subgraph "AWS ECS - us-east-1"
-        subgraph "ECS Cluster: my-ecs-cluster"
-            CLUSTER[ECS Cluster<br/>my-ecs-cluster]
+        subgraph "ECS Cluster: myEcsCluster"
+            CLUSTER[ECS Cluster<br/>myEcsCluster<br/>Name: my-ecs-cluster]
             
             subgraph "Frontend Service"
-                SERVICE[ECS Service<br/>frontendService_id<br/>Desired: 1 task]
-                TASK_DEF[Task Definition<br/>frontend-task:2<br/>CPU: 256, Memory: 512MB]
+                SERVICE[ECS Service<br/>frontendService<br/>Desired Count: 1<br/>Launch Type: FARGATE]
                 
-                subgraph "Container"
-                    CONTAINER[Container<br/>frontend-container<br/>nginx:latest<br/>Port: 80]
+                TASK_DEF[Task Definition<br/>frontendTaskDefinition<br/>Family: frontend-task<br/>CPU: 256, Memory: 512MB<br/>Network Mode: awsvpc]
+                
+                subgraph "Container Definition"
+                    CONTAINER[Container<br/>frontend-container<br/>Image: nginx:latest<br/>Port: 80 TCP<br/>Essential: true]
                 end
             end
         end
         
         subgraph "CloudWatch Logs"
-            LOG_GROUP[Log Group<br/>/ecs/frontend-task<br/>Retention: 14 days]
+            LOG_GROUP[Log Group<br/>frontendLogGroup<br/>Name: /ecs/frontend-task<br/>Retention: 14 days]
         end
+
+        AWS_FARGATE[AWS Fargate<br/>Serverless Compute]
     end
     
-    subgraph "Network (from network-infrastructure)"
-        VPC_REF[VPC<br/>vpc_id]
-        SUBNET_REF[Public Subnet<br/>subnet_id]
-        SG_REF[Security Group<br/>sg_id]
+    subgraph "Network Resources (Stack Reference)"
+        SUBNET_REF[Public Subnet<br/>publicSubnetId<br/>From: network-infrastructure]
+        SG_NOTE[⚠️ Security Group<br/>NOT CONFIGURED<br/>Empty array in code]
     end
     
-    subgraph "IAM (from iam-infrastructure)"
-        EXEC_ROLE[Execution Role<br/>frontendServiceRole_id]
-        TASK_ROLE[Task Role<br/>frontendServiceRole_id]
+    subgraph "IAM Resources (Stack Reference)"
+        SERVICE_ROLE[Service Role<br/>frontendServiceRoleArn<br/>From: iam-infrastructure]
     end
-    
-    INTERNET((Internet))
     
     %% Stack References
-    NET_STACK -.->|Provides VPC, Subnet, SG| VPC_REF
-    NET_STACK -.->|Provides VPC, Subnet, SG| SUBNET_REF
-    NET_STACK -.->|Provides VPC, Subnet, SG| SG_REF
-    IAM_STACK -.->|Provides Roles| EXEC_ROLE
-    IAM_STACK -.->|Provides Roles| TASK_ROLE
+    NET_STACK -.->|Exports publicSubnetId| SUBNET_REF
+    IAM_STACK -.->|Exports frontendServiceRoleArn| SERVICE_ROLE
     
     %% ECS Relationships
     CLUSTER ---|Contains| SERVICE
-    SERVICE ---|Uses| TASK_DEF
+    SERVICE ---|Runs| TASK_DEF
     TASK_DEF ---|Defines| CONTAINER
-    SERVICE ---|Runs in| SUBNET_REF
-    SERVICE ---|Protected by| SG_REF
+    SERVICE ---|Deployed in| SUBNET_REF
+    SERVICE ---|Runs on| AWS_FARGATE
     
     %% IAM Relationships
-    TASK_DEF ---|Execution Role| EXEC_ROLE
-    TASK_DEF ---|Task Role| TASK_ROLE
+    TASK_DEF ---|Execution Role| SERVICE_ROLE
+    TASK_DEF ---|Task Role| SERVICE_ROLE
     
     %% Logging
-    CONTAINER ---|Logs to| LOG_GROUP
+    CONTAINER ---|Streams logs to| LOG_GROUP
+    LOG_GROUP ---|Log Driver: awslogs<br/>Region: us-east-1<br/>Prefix: ecs| CONTAINER
     
     %% Network Flow
-    INTERNET ---|HTTP:80| SG_REF
-    SG_REF ---|Allows traffic to| CONTAINER
+    INTERNET ---|HTTP:80<br/>Direct to Task| CONTAINER
     CONTAINER ---|Deployed in| SUBNET_REF
-    SUBNET_REF ---|Part of| VPC_REF
+    SERVICE -.->|Assign Public IP: true| CONTAINER
     
-    %% Launch Configuration
-    SERVICE -.->|Launch Type: FARGATE| AWS_FARGATE[AWS Fargate]
-    SERVICE -.->|Public IP: Enabled| SUBNET_REF
+    %% Security Warning
+    SG_NOTE -.->|Should protect| SERVICE
     
     %% Styling
-    classDef cluster fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef cluster fill:#FF9900,stroke:#232F3E,stroke-width:3px,color:#fff
     classDef service fill:#3F48CC,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef container fill:#7AA116,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef logs fill:#8C4FFF,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef network fill:#146EB4,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef logs fill:#146EB4,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef network fill:#8C4FFF,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef iam fill:#DD344C,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef stack fill:#879196,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef fargate fill:#FF6600,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef warning fill:#FFA500,stroke:#FF0000,stroke-width:3px,color:#000
+    classDef external fill:#879196,stroke:#232F3E,stroke-width:2px,color:#fff
     
     class CLUSTER cluster
     class SERVICE,TASK_DEF service
     class CONTAINER container
     class LOG_GROUP logs
-    class VPC_REF,SUBNET_REF,SG_REF network
-    class EXEC_ROLE,TASK_ROLE iam
+    class SUBNET_REF network
+    class SERVICE_ROLE iam
     class IAM_STACK,NET_STACK stack
     class AWS_FARGATE fargate
+    class SG_NOTE warning
+    class INTERNET external
 ```
 
 ## Resources Summary
 
 ### ECS Resources
-- **Cluster**: `my-ecs-cluster`
-- **Service**: `frontendService_id`
+- **Cluster**: `myEcsCluster`
+  - Cluster Name: `my-ecs-cluster`
+- **Service**: `frontendService`
   - Desired Count: 1 task
   - Launch Type: AWS Fargate
-  - Platform Version: LATEST
-- **Task Definition**: `frontend-task:2`
+  - Assign Public IP: Enabled
+  - **⚠️ Security Groups**: Empty array (no security group configured)
+- **Task Definition**: `frontendTaskDefinition`
+  - Family: `frontend-task`
   - CPU: 256 units
   - Memory: 512 MB
   - Network Mode: awsvpc
@@ -121,28 +125,36 @@ graph TB
 - **Retention**: 14 days
 
 ### Network Configuration
-- **VPC**: Inherited from network-infrastructure stack
-- **Subnet**: Public subnet with auto-assign public IP enabled
-- **Security Group**: Allows HTTP (80) and SSH (22) from internet
+- **Subnet**: Public subnet from network-infrastructure stack (`publicSubnetId`)
+  - Auto-assign public IP enabled at service level
+- **⚠️ Security Group**: NOT CONFIGURED
+  - Code shows `securityGroups: []` (empty array)
+  - Tasks are exposed directly to internet without security group protection
+  - **Security Risk**: No network-level access control
 
 ### IAM Configuration
-- **Execution Role**: `frontendServiceRole_id` (for pulling images, logging)
-- **Task Role**: `frontendServiceRole_id` (for application permissions)
+- **Execution Role**: `frontendServiceRoleArn` from iam-infrastructure stack
+  - Used for pulling container images from ECR
+  - Used for writing logs to CloudWatch
+- **Task Role**: `frontendServiceRoleArn` from iam-infrastructure stack
+  - Same role used for both execution and task permissions
+  - Provides application-level AWS API access
 
 ## Stack Dependencies
 
 ### Consumes from network-infrastructure
-- `vpcId`: VPC identifier for network placement
 - `publicSubnetId`: Subnet for task deployment
-- `securityGroupId`: Security group for network access control
+- **Note**: `vpcId` and `securityGroupId` are exported by network-infrastructure but NOT consumed by this stack
 
 ### Consumes from iam-infrastructure
 - `frontendServiceRoleArn`: IAM role for task execution and application permissions
-- `ecsClusterRoleArn`: IAM role for cluster operations
-- `ecsInstanceRoleArn`: IAM role for EC2 instances (if using EC2 launch type)
+- **Note**: `ecsClusterRoleArn` and `ecsInstanceRoleArn` are exported by iam-infrastructure but NOT consumed by this stack (Fargate launch type doesn't require them)
 
 ## Data Flow
-1. **Internet Traffic** → Security Group (port 80) → Frontend Container
-2. **Container Logs** → CloudWatch Logs (`/ecs/frontend-task`)
-3. **Image Pull** → ECR (via execution role permissions)
-4. **Task Networking** → Public subnet with internet gateway access
+1. **Internet Traffic** → ⚠️ Direct to Frontend Container (no security group filtering)
+2. **Container Logs** → CloudWatch Logs (`/ecs/frontend-task`) via awslogs driver
+3. **Image Pull** → Docker Hub (nginx:latest) via execution role permissions
+4. **Task Networking** → Public subnet with auto-assigned public IP and internet gateway access
+
+## Security Considerations
+⚠️ **Critical Issue**: The ECS service is configured with an empty security group array (`securityGroups: []`), meaning tasks have no network-level access control. This exposes the containers directly to the internet without filtering. The network-infrastructure stack exports a security group, but it's not being used.

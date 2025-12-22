@@ -4,88 +4,90 @@ This diagram shows the IAM roles and policies deployed in the `iam-infrastructur
 
 ```mermaid
 graph TB
-    subgraph "AWS IAM"
+    subgraph "AWS IAM - Identity & Access Management"
         subgraph "ECS Instance Role"
-            EIR[IAM Role<br/>ecsInstanceRole_id]
-            EIRP[Role Policy<br/>ecsInstanceRolePolicy_id]
+            EIR[IAM Role<br/>ecsInstanceRole<br/>Principal: ec2.amazonaws.com]
+            EIRP[Inline Policy<br/>ecsInstanceRolePolicy]
         end
         
         subgraph "ECS Cluster Role"
-            ECR[IAM Role<br/>ecsClusterRole_id]
-            ECRP[Role Policy<br/>ecsClusterRolePolicy_id]
+            ECR[IAM Role<br/>ecsClusterRole<br/>Principal: ecs.amazonaws.com]
+            ECRP[Inline Policy<br/>ecsClusterRolePolicy]
         end
         
         subgraph "Frontend Service Role"
-            FSR[IAM Role<br/>frontendServiceRole_id]
-            FSRP[Role Policy<br/>frontendServiceRolePolicy_id]
+            FSR[IAM Role<br/>frontendServiceRole<br/>Principal: ecs-tasks.amazonaws.com]
+            FSRP[Inline Policy<br/>frontendServiceRolePolicy]
         end
     end
     
-    subgraph "AWS Services"
-        EC2[EC2 Service]
-        ECS[ECS Service]
-        LOGS[CloudWatch Logs]
-        ECR_SVC[ECR Service]
-        S3[S3 Service]
+    subgraph "AWS Services - Trust & Permissions"
+        EC2[EC2 Service<br/>Trusted by Instance Role]
+        ECS_SVC[ECS Service<br/>Trusted by Cluster Role]
+        ECS_TASKS[ECS Tasks Service<br/>Trusted by Service Role]
+        LOGS[CloudWatch Logs<br/>Log Stream Management]
+        ECR_SVC[ECR Service<br/>Container Image Registry]
+        S3[S3 Service<br/>Object Storage]
+        ELB[Elastic Load Balancing<br/>Target Management]
     end
     
-    %% Trust Relationships
-    EC2 ---|AssumeRole| EIR
-    ECS ---|AssumeRole| ECR
-    ECS ---|AssumeRole| FSR
+    %% Trust Relationships (AssumeRole)
+    EC2 ---|Trusts & Assumes| EIR
+    ECS_SVC ---|Trusts & Assumes| ECR
+    ECS_TASKS ---|Trusts & Assumes| FSR
     
     %% Policy Attachments
-    EIR ---|Has Policy| EIRP
-    ECR ---|Has Policy| ECRP
-    FSR ---|Has Policy| FSRP
+    EIR ---|Inline Policy| EIRP
+    ECR ---|Inline Policy| ECRP
+    FSR ---|Inline Policy| FSRP
     
     %% Permissions (ECS Instance Role)
-    EIRP -.->|CreateCluster, RegisterInstance| ECS
-    EIRP -.->|CreateLogStream, PutLogEvents| LOGS
-    EIRP -.->|GetAuthorizationToken, BatchGetImage| ECR_SVC
+    EIRP -.->|CreateCluster, DeregisterContainerInstance<br/>DiscoverPollEndpoint, Poll<br/>RegisterContainerInstance<br/>StartTelemetrySession, Submit*| ECS_SVC
+    EIRP -.->|CreateLogStream<br/>PutLogEvents| LOGS
+    EIRP -.->|GetAuthorizationToken<br/>BatchCheckLayerAvailability<br/>GetDownloadUrlForLayer<br/>BatchGetImage| ECR_SVC
     EIRP -.->|AuthorizeSecurityGroupIngress| EC2
     
     %% Permissions (ECS Cluster Role)
-    ECRP -.->|Describe*, List*| EC2
-    ECRP -.->|ELB Operations| ELB[Load Balancer]
-    ECRP -.->|ECS Operations| ECS
+    ECRP -.->|Describe*| EC2
+    ECRP -.->|Describe*, RegisterTargets<br/>DeregisterTargets<br/>DescribeTargetHealth<br/>DescribeListeners| ELB
+    ECRP -.->|ListClusters, ListServices<br/>ListTasks, Describe*| ECS_SVC
     
     %% Permissions (Frontend Service Role)
-    FSRP -.->|CreateLogStream, PutLogEvents| LOGS
-    FSRP -.->|ECR Operations| ECR_SVC
-    FSRP -.->|GetObject, PutObject| S3
+    FSRP -.->|CreateLogStream<br/>PutLogEvents| LOGS
+    FSRP -.->|GetDownloadUrlForLayer<br/>BatchCheckLayerAvailability<br/>GetAuthorizationToken<br/>BatchGetImage| ECR_SVC
+    FSRP -.->|GetObject<br/>PutObject| S3
     
     %% Stack Outputs (exported to other stacks)
-    EIR -.->|ecsInstanceRoleArn| OUTPUTS[Stack Outputs]
+    EIR -.->|ecsInstanceRoleArn| OUTPUTS[Stack Outputs<br/>Exported ARNs]
     ECR -.->|ecsClusterRoleArn| OUTPUTS
     FSR -.->|frontendServiceRoleArn| OUTPUTS
     
     %% Styling
-    classDef role fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef policy fill:#3F48CC,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef service fill:#7AA116,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef role fill:#DD344C,stroke:#232F3E,stroke-width:3px,color:#fff
+    classDef policy fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef service fill:#8C4FFF,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef outputs fill:#146EB4,stroke:#232F3E,stroke-width:2px,color:#fff
     
     class EIR,ECR,FSR role
     class EIRP,ECRP,FSRP policy
-    class EC2,ECS,LOGS,ECR_SVC,S3,ELB service
+    class EC2,ECS_SVC,ECS_TASKS,LOGS,ECR_SVC,S3,ELB service
     class OUTPUTS outputs
 ```
 
 ## Resources Summary
 
 ### IAM Roles
-- **ECS Instance Role**: `ecsInstanceRole_id`
-  - Trust: EC2 service
-  - Purpose: EC2 instances running ECS agent
+- **ECS Instance Role**: `ecsInstanceRole`
+  - Trust: EC2 service (`ec2.amazonaws.com`)
+  - Purpose: EC2 instances running ECS agent (for EC2 launch type)
   
-- **ECS Cluster Role**: `ecsClusterRole_id`
-  - Trust: ECS service
+- **ECS Cluster Role**: `ecsClusterRole`
+  - Trust: ECS service (`ecs.amazonaws.com`)
   - Purpose: ECS cluster management operations
   
-- **Frontend Service Role**: `frontendServiceRole_id`
-  - Trust: ECS service
-  - Purpose: Frontend task execution and logging
+- **Frontend Service Role**: `frontendServiceRole`
+  - Trust: ECS Tasks service (`ecs-tasks.amazonaws.com`)
+  - Purpose: Task execution role for pulling images, logging, and application permissions
 
 ### IAM Policies
 

@@ -4,104 +4,91 @@ This master diagram shows the complete production infrastructure across all Pulu
 
 ```mermaid
 graph TB
-    subgraph "Internet"
-        USERS[Users/Clients]
-        INTERNET((Internet))
-    end
+    USERS[Users/Clients]
+    INTERNET((Internet<br/>0.0.0.0/0))
+    DOCKER_HUB[Docker Hub<br/>nginx:latest]
 
-    subgraph "AWS Account: REDACTED"
-        subgraph "IAM Infrastructure Stack"
-            subgraph "IAM Roles & Policies"
-                ECS_INST_ROLE[ECS Instance Role<br/>ecsInstanceRole_id]
-                ECS_CLUSTER_ROLE[ECS Cluster Role<br/>ecsClusterRole_id]
-                FRONTEND_ROLE[Frontend Service Role<br/>frontendServiceRole_id]
+    subgraph "AWS Account - us-east-1"
+        subgraph "IAM Infrastructure Stack<br/>elisabeth-demo/iam-infrastructure/prod"
+            ECS_INST_ROLE[ECS Instance Role<br/>ecsInstanceRole<br/>Not Used]
+            ECS_CLUSTER_ROLE[ECS Cluster Role<br/>ecsClusterRole<br/>Not Used]
+            FRONTEND_ROLE[Frontend Service Role<br/>frontendServiceRole<br/>✓ Used by Tasks]
+        end
+
+        subgraph "Network Infrastructure Stack<br/>elisabeth-demo/network-infrastructure/prod"
+            subgraph "VPC: ecsVpc (10.0.0.0/16)"
+                IGW[Internet Gateway<br/>ecsInternetGateway]
+
+                ROUTE_TABLE[Route Table<br/>ecsRouteTable<br/>0.0.0.0/0 → IGW]
+
+                PUBLIC_SUBNET[Public Subnet<br/>ecsPublicSubnet<br/>10.0.1.0/24<br/>Auto-assign IP: Yes]
+
+                SECURITY_GROUP[⚠️ Security Group<br/>ecsSecurityGroup<br/>HTTP:80, SSH:22<br/>NOT USED BY CLUSTER]
             end
         end
 
-        subgraph "Network Infrastructure Stack"
-            subgraph "VPC: ecs-vpc (10.0.0.0/16)"
-                IGW[Internet Gateway<br/>igw_id]
-
-                subgraph "AZ: us-east-1b"
-                    PUBLIC_SUBNET[Public Subnet<br/>10.0.1.0/24<br/>subnet_id]
-                end
-
-                ROUTE_TABLE[Route Table<br/>rtb_id]
-                SECURITY_GROUP[Security Group<br/>sg_id<br/>HTTP:80, SSH:22]
-            end
-        end
-
-        subgraph "Cluster Infrastructure Stack"
-            subgraph "ECS Cluster: my-ecs-cluster"
+        subgraph "Cluster Infrastructure Stack<br/>elisabeth-demo/cluster-infrastructure/prod"
+            subgraph "ECS Cluster: myEcsCluster"
                 ECS_CLUSTER[ECS Cluster<br/>my-ecs-cluster]
 
-                subgraph "Frontend Service"
-                    ECS_SERVICE[ECS Service<br/>frontendService_id<br/>Desired: 1 task]
-                    TASK_DEF[Task Definition<br/>frontend-task:2<br/>Fargate: 256 CPU, 512 MB]
+                ECS_SERVICE[ECS Service<br/>frontendService<br/>Desired: 1<br/>Launch: FARGATE<br/>⚠️ No Security Group]
 
-                    subgraph "Running Task"
-                        NGINX_CONTAINER[Container<br/>nginx:latest<br/>Port: 80]
-                    end
-                end
+                TASK_DEF[Task Definition<br/>frontendTaskDefinition<br/>Family: frontend-task<br/>256 CPU, 512 MB<br/>Network: awsvpc]
+
+                NGINX_CONTAINER[Container<br/>frontend-container<br/>nginx:latest<br/>Port: 80 TCP]
             end
 
-            subgraph "CloudWatch Logs"
-                LOG_GROUP[Log Group<br/>/ecs/frontend-task<br/>14 days retention]
-            end
+            LOG_GROUP[CloudWatch Log Group<br/>frontendLogGroup<br/>/ecs/frontend-task<br/>Retention: 14 days]
         end
 
-        subgraph "AWS Services"
-            ECR[Elastic Container Registry]
-            FARGATE[AWS Fargate]
-            CLOUDWATCH[CloudWatch Logs]
-        end
+        FARGATE[AWS Fargate<br/>Serverless Compute Platform]
+        CLOUDWATCH[CloudWatch Logs Service]
     end
 
     %% External Traffic Flow
     USERS ---|HTTP Requests| INTERNET
-    INTERNET ---|Port 80| IGW
+    INTERNET ---|⚠️ Direct Access<br/>No Security Group| NGINX_CONTAINER
 
-    %% Network Flow
-    IGW ---|Attached to VPC| PUBLIC_SUBNET
-    ROUTE_TABLE ---|Routes 0.0.0.0/0 to| IGW
-    PUBLIC_SUBNET ---|Associated with| ROUTE_TABLE
-    SECURITY_GROUP ---|Protects| PUBLIC_SUBNET
+    %% Network Infrastructure
+    IGW ---|Attached to| PUBLIC_SUBNET
+    ROUTE_TABLE ---|Routes Internet Traffic| IGW
+    PUBLIC_SUBNET ---|Uses| ROUTE_TABLE
+    SECURITY_GROUP -.->|Exported but<br/>NOT USED| ECS_SERVICE
 
     %% Cross-Stack Dependencies (Stack References)
-    ECS_INST_ROLE -.->|ecsInstanceRoleArn| ECS_SERVICE
-    ECS_CLUSTER_ROLE -.->|ecsClusterRoleArn| ECS_SERVICE
-    FRONTEND_ROLE -.->|frontendServiceRoleArn| TASK_DEF
-    PUBLIC_SUBNET -.->|publicSubnetId| ECS_SERVICE
-    SECURITY_GROUP -.->|securityGroupId| ECS_SERVICE
+    FRONTEND_ROLE -.->|frontendServiceRoleArn<br/>Stack Reference| TASK_DEF
+    PUBLIC_SUBNET -.->|publicSubnetId<br/>Stack Reference| ECS_SERVICE
+
+    %% Unused Exports
+    ECS_INST_ROLE -.->|Exported but<br/>NOT USED| ECS_SERVICE
+    ECS_CLUSTER_ROLE -.->|Exported but<br/>NOT USED| ECS_SERVICE
 
     %% ECS Relationships
     ECS_CLUSTER ---|Contains| ECS_SERVICE
     ECS_SERVICE ---|Runs| TASK_DEF
     TASK_DEF ---|Defines| NGINX_CONTAINER
     ECS_SERVICE ---|Deployed in| PUBLIC_SUBNET
-    ECS_SERVICE ---|Protected by| SECURITY_GROUP
+    ECS_SERVICE ---|Runs on| FARGATE
+
+    %% IAM Relationships
+    TASK_DEF ---|Execution Role| FRONTEND_ROLE
+    TASK_DEF ---|Task Role| FRONTEND_ROLE
 
     %% Service Integrations
-    TASK_DEF ---|Pulls images from| ECR
-    ECS_SERVICE ---|Runs on| FARGATE
-    NGINX_CONTAINER ---|Logs to| LOG_GROUP
+    NGINX_CONTAINER ---|Pulls Image from| DOCKER_HUB
+    NGINX_CONTAINER ---|Streams Logs to| LOG_GROUP
     LOG_GROUP ---|Stored in| CLOUDWATCH
+    FRONTEND_ROLE -.->|Logging Permissions| CLOUDWATCH
 
     %% Data Flow
-    INTERNET ---|HTTP:80| SECURITY_GROUP
-    SECURITY_GROUP ---|Allows traffic| NGINX_CONTAINER
-    NGINX_CONTAINER ---|Serves content| SECURITY_GROUP
-    SECURITY_GROUP ---|Response| INTERNET
+    NGINX_CONTAINER ---|Serves HTTP| INTERNET
+    INTERNET ---|Responses| USERS
 
-    %% IAM Permissions Flow
-    FRONTEND_ROLE -.->|ECR permissions| ECR
-    FRONTEND_ROLE -.->|Logging permissions| CLOUDWATCH
-
-    %% Stack Boundaries
+    %% Stack Outputs Summary
     subgraph "Stack Outputs & Dependencies"
-        IAM_OUTPUTS[IAM Stack Outputs:<br/>• ecsInstanceRoleArn<br/>• ecsClusterRoleArn<br/>• frontendServiceRoleArn]
-        NET_OUTPUTS[Network Stack Outputs:<br/>• vpcId<br/>• publicSubnetId<br/>• securityGroupId]
-        CLUSTER_INPUTS[Cluster Stack Inputs:<br/>• IAM role ARNs<br/>• Network resource IDs]
+        IAM_OUT[IAM Stack Exports:<br/>✓ frontendServiceRoleArn<br/>○ ecsInstanceRoleArn<br/>○ ecsClusterRoleArn]
+        NET_OUT[Network Stack Exports:<br/>✓ publicSubnetId<br/>○ vpcId<br/>○ securityGroupId]
+        CLUSTER_IN[Cluster Stack Imports:<br/>✓ frontendServiceRoleArn<br/>✓ publicSubnetId]
     end
 
     %% Styling
@@ -113,15 +100,19 @@ graph TB
     classDef logs fill:#146EB4,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef external fill:#879196,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef outputs fill:#FF6600,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef warning fill:#FFA500,stroke:#FF0000,stroke-width:2px,color:#000
+    classDef unused fill:#CCCCCC,stroke:#666666,stroke-width:1px,color:#333
 
-    class ECS_INST_ROLE,ECS_CLUSTER_ROLE,FRONTEND_ROLE iam
-    class IGW,PUBLIC_SUBNET,ROUTE_TABLE,SECURITY_GROUP network
+    class FRONTEND_ROLE iam
+    class ECS_INST_ROLE,ECS_CLUSTER_ROLE unused
+    class IGW,PUBLIC_SUBNET,ROUTE_TABLE network
+    class SECURITY_GROUP warning
     class ECS_CLUSTER,ECS_SERVICE,TASK_DEF cluster
     class NGINX_CONTAINER container
-    class ECR,FARGATE,CLOUDWATCH aws
+    class FARGATE,CLOUDWATCH aws
     class LOG_GROUP logs
-    class USERS,INTERNET external
-    class IAM_OUTPUTS,NET_OUTPUTS,CLUSTER_INPUTS outputs
+    class USERS,INTERNET,DOCKER_HUB external
+    class IAM_OUT,NET_OUT,CLUSTER_IN outputs
 ```
 
 ## Architecture Overview
@@ -131,59 +122,70 @@ graph TB
 The production infrastructure is organized into three logical Pulumi stacks:
 
 1. **IAM Infrastructure Stack** (`iam-infrastructure`)
-
+   - Project: `iam-infrastructure`
+   - Stack: `prod`
+   - Full name: `elisabeth-demo/iam-infrastructure/prod`
    - Manages all IAM roles and policies
-   - Provides role ARNs to dependent stacks
-   - Follows principle of least privilege
+   - **Exports**: `frontendServiceRoleArn` (✓ used), `ecsInstanceRoleArn` (○ unused), `ecsClusterRoleArn` (○ unused)
 
 2. **Network Infrastructure Stack** (`network-infrastructure`)
-
+   - Project: `network-infrastructure`
+   - Stack: `prod`
+   - Full name: `elisabeth-demo/network-infrastructure/prod`
    - Manages VPC, subnets, routing, and security groups
-   - Provides network resource IDs to dependent stacks
-   - Establishes secure network boundaries
+   - **Exports**: `publicSubnetId` (✓ used), `vpcId` (○ unused), `securityGroupId` (○ unused)
 
 3. **Cluster Infrastructure Stack** (`cluster-infrastructure`)
+   - Project: `cluster-infrastructure`
+   - Stack: `prod`
+   - Full name: `elisabeth-demo/cluster-infrastructure/prod`
    - Manages ECS cluster, services, and task definitions
-   - Consumes outputs from IAM and Network stacks
-   - Runs containerized applications
+   - **Imports**: `frontendServiceRoleArn`, `publicSubnetId`
+   - Runs containerized applications on AWS Fargate
 
 ### Cross-Stack Dependencies
 
-#### IAM → Cluster
+#### IAM → Cluster (Active)
+- ✓ `frontendServiceRoleArn`: Used as both execution role and task role for ECS tasks
+  - Provides permissions for pulling images, writing logs, and S3 access
 
-- `ecsInstanceRoleArn`: For EC2 instances (if using EC2 launch type)
-- `ecsClusterRoleArn`: For ECS cluster management operations
-- `frontendServiceRoleArn`: For task execution and application permissions
+#### IAM → Cluster (Unused Exports)
+- ○ `ecsInstanceRoleArn`: Exported but not consumed (Fargate doesn't use EC2 instances)
+- ○ `ecsClusterRoleArn`: Exported but not consumed (not required for Fargate)
 
-#### Network → Cluster
+#### Network → Cluster (Active)
+- ✓ `publicSubnetId`: Subnet where ECS tasks are deployed with auto-assigned public IPs
 
-- `vpcId`: VPC identifier for resource placement
-- `publicSubnetId`: Subnet for task deployment
-- `securityGroupId`: Security group for access control
+#### Network → Cluster (Unused Exports)
+- ○ `vpcId`: Exported but not consumed by cluster stack
+- ○ `securityGroupId`: **⚠️ Exported but not consumed - Security Gap**
+  - The security group is defined and exported but the ECS service uses an empty security group array
+  - This leaves tasks exposed directly to the internet without network-level filtering
 
 ### Data Flow Patterns
 
 #### User Request Flow
 
-1. **Client Request** → Internet → Internet Gateway
-2. **Network Routing** → VPC → Public Subnet
-3. **Security Filtering** → Security Group (allows HTTP:80)
-4. **Container Processing** → Nginx container
-5. **Response Path** → Reverse of request flow
+1. **Client Request** → Internet (0.0.0.0/0)
+2. **⚠️ Direct Access** → Nginx container (no security group filtering)
+3. **Container Processing** → Nginx serves content on port 80
+4. **Response Path** → Back through internet to client
+
+**Security Issue**: No security group is applied to the ECS service, so traffic reaches containers without network-level filtering.
 
 #### Container Lifecycle Flow
 
-1. **Image Pull** → ECR (via frontend service role)
-2. **Task Launch** → Fargate platform
-3. **Network Assignment** → Public subnet with auto-assign IP
-4. **Log Streaming** → CloudWatch Logs group
+1. **Image Pull** → Docker Hub (nginx:latest) via frontend service role
+2. **Task Launch** → AWS Fargate serverless platform
+3. **Network Assignment** → Public subnet with auto-assigned public IP
+4. **Log Streaming** → CloudWatch Logs group (/ecs/frontend-task)
 
 #### Security & Permissions Flow
 
-1. **Task Execution** → Frontend service role assumes permissions
-2. **ECR Access** → Role allows image pulling
-3. **Logging Access** → Role allows log stream creation and writing
-4. **Network Security** → Security group controls traffic
+1. **Task Execution** → Frontend service role provides execution permissions
+2. **Image Pull** → Role allows pulling from Docker Hub (public images)
+3. **Logging Access** → Role allows CloudWatch log stream creation and writing
+4. **⚠️ Network Security** → No security group applied (empty array in code)
 
 ### Resource Relationships
 
@@ -191,31 +193,37 @@ The production infrastructure is organized into three logical Pulumi stacks:
 
 - **Compute**: AWS Fargate (serverless containers)
 - **Networking**: VPC with public subnet and internet gateway
-- **Security**: IAM roles with least-privilege policies + security groups
+- **Security**: IAM roles with specific policies, ⚠️ security group defined but not used
 - **Monitoring**: CloudWatch Logs with 14-day retention
-- **Container Registry**: ECR for image storage
+- **Container Images**: Docker Hub (nginx:latest)
 
 #### Scaling & Availability
 
-- **Current Configuration**: Single AZ deployment (us-east-1b)
-- **Service Scaling**: ECS service with desired count of 1
-- **Container Platform**: Fargate (serverless, managed scaling)
+- **Current Configuration**: Single subnet deployment (no specific AZ pinning)
+- **Service Scaling**: ECS service with desired count of 1 task
+- **Container Platform**: Fargate (serverless, AWS-managed infrastructure)
+- **High Availability**: Not configured (single task, single subnet)
 
 ### Infrastructure Characteristics
 
 #### Security Posture
 
-- ✅ IAM roles with specific, limited permissions
-- ✅ Security groups with defined ingress/egress rules
-- ⚠️ Public subnet with internet access (consider private subnet + ALB)
-- ⚠️ SSH access allowed (port 22) - review necessity
+- ✅ IAM roles with specific permissions for logging and image pulling
+- ⚠️ **Critical**: Security group defined but NOT applied to ECS service
+  - Code shows `securityGroups: []` (empty array)
+  - Tasks are directly exposed to internet without network filtering
+  - Security group exists with HTTP:80 and SSH:22 rules but is unused
+- ⚠️ Public subnet with direct internet access (no ALB or security group protection)
+- ⚠️ Single IAM role used for both execution and task permissions (not separated)
 
 #### Operational Considerations
 
-- **Monitoring**: CloudWatch Logs integration
-- **Deployment**: Fargate platform (no server management)
-- **Networking**: Single AZ (consider multi-AZ for HA)
+- **Monitoring**: CloudWatch Logs with 14-day retention
+- **Deployment**: Fargate platform (fully managed, no server management)
+- **Networking**: Single subnet (no multi-AZ redundancy)
 - **Storage**: Stateless containers (no persistent volumes)
+- **Image Source**: Public Docker Hub (nginx:latest)
+- **Stack References**: Uses Pulumi StackReference for cross-stack dependencies
 
 ## Repository Information
 
@@ -224,3 +232,28 @@ All infrastructure is managed through Infrastructure as Code using Pulumi:
 - **Repository**: `github.com/lichtie/prod-infrastructure`
 - **Organization**: `elisabeth-demo`
 - **Environment**: `prod`
+- **Language**: TypeScript (Node.js runtime)
+- **Projects**: 3 separate projects (iam, network, ecs-cluster directories)
+- **Stacks**: Each project has a `prod` stack
+
+## Recommendations
+
+Based on the current infrastructure analysis, consider these improvements:
+
+1. **Security Group Configuration** (High Priority)
+   - Update `ecs-cluster/index.ts` line 74 to reference the security group from network stack
+   - Change `securityGroups: []` to `securityGroups: [networkStack.getOutput("securityGroupId")]`
+
+2. **IAM Role Separation** (Medium Priority)
+   - Consider separating execution role from task role for better security isolation
+   - Execution role: Only ECR and CloudWatch permissions
+   - Task role: Application-specific permissions (S3, etc.)
+
+3. **High Availability** (Medium Priority)
+   - Deploy across multiple subnets in different availability zones
+   - Increase desired task count for redundancy
+   - Consider adding an Application Load Balancer
+
+4. **Unused Resources** (Low Priority)
+   - Remove or document why `ecsInstanceRole` and `ecsClusterRole` are exported but unused
+   - These roles are for EC2 launch type, not needed for Fargate

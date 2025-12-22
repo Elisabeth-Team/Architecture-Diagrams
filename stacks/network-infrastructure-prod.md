@@ -4,47 +4,55 @@ This diagram shows the network infrastructure resources deployed in the `network
 
 ```mermaid
 graph TB
-    subgraph "AWS Region: us-east-1"
-        subgraph "VPC: ecs-vpc (10.0.0.0/16)"
-            VPC[VPC<br/>vpc_id<br/>10.0.0.0/16]
+    INTERNET((Internet<br/>0.0.0.0/0))
 
-            subgraph "Availability Zone: us-east-1b"
-                SUBNET[Public Subnet<br/>subnet_id<br/>10.0.1.0/24]
+    subgraph "AWS Region: us-east-1"
+        subgraph "VPC: ecsVpc (10.0.0.0/16)"
+            VPC[VPC<br/>ecsVpc<br/>CIDR: 10.0.0.0/16<br/>DNS Support: Enabled<br/>DNS Hostnames: Enabled]
+
+            IGW[Internet Gateway<br/>ecsInternetGateway<br/>Attached to VPC]
+
+            RT[Route Table<br/>ecsRouteTable<br/>Route: 0.0.0.0/0 → IGW]
+
+            subgraph "Public Subnet"
+                SUBNET[Subnet<br/>ecsPublicSubnet<br/>CIDR: 10.0.1.0/24<br/>Auto-assign Public IP: Yes]
             end
 
-            IGW[Internet Gateway<br/>igw_id]
-            RT[Route Table<br/>rtb_id]
-            SG[Security Group<br/>sg_id<br/>ecs-security-group]
+            SG[Security Group<br/>ecsSecurityGroup<br/>Allow HTTP & SSH]
         end
     end
 
-    INTERNET((Internet))
-
-    %% Connections
-    INTERNET ---|Public Access| IGW
+    %% Internet Gateway Connection
+    INTERNET ---|Public Internet Access| IGW
     IGW ---|Attached to| VPC
+
+    %% VPC Contains Resources
     VPC ---|Contains| SUBNET
+    VPC ---|Contains| RT
+    VPC ---|Contains| SG
+
+    %% Route Table Association
     RT ---|Routes 0.0.0.0/0 to| IGW
     SUBNET ---|Associated with| RT
-    SG ---|Protects resources in| VPC
 
     %% Security Group Rules
-    SG -.->|Ingress: HTTP | INTERNET
-    SG -.->|Ingress: SSH | INTERNET
-    SG -.->|Egress: All traffic| INTERNET
+    SG -.->|Ingress: TCP 80<br/>HTTP from 0.0.0.0/0| INTERNET
+    SG -.->|Ingress: TCP 22<br/>SSH from 0.0.0.0/0| INTERNET
+    SG -.->|Egress: All Protocols<br/>All Ports to 0.0.0.0/0| INTERNET
 
     %% Stack Outputs (exported to other stacks)
-    SUBNET -.->|publicSubnetId| OUTPUTS[Stack Outputs]
-    VPC -.->|vpcId| OUTPUTS
+    VPC -.->|vpcId| OUTPUTS[Stack Outputs<br/>Network Resource IDs]
+    SUBNET -.->|publicSubnetId| OUTPUTS
     SG -.->|securityGroupId| OUTPUTS
 
     %% Styling
-    classDef vpc fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef subnet fill:#3F48CC,stroke:#232F3E,stroke-width:2px,color:#fff
-    classDef gateway fill:#7AA116,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef vpc fill:#3F48CC,stroke:#232F3E,stroke-width:3px,color:#fff
+    classDef subnet fill:#7AA116,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef gateway fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef security fill:#DD344C,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef routing fill:#8C4FFF,stroke:#232F3E,stroke-width:2px,color:#fff
     classDef outputs fill:#146EB4,stroke:#232F3E,stroke-width:2px,color:#fff
+    classDef external fill:#879196,stroke:#232F3E,stroke-width:2px,color:#fff
 
     class VPC vpc
     class SUBNET subnet
@@ -52,17 +60,29 @@ graph TB
     class SG security
     class RT routing
     class OUTPUTS outputs
+    class INTERNET external
 ```
 
 ## Resources Summary
 
 ### Core Network Components
 
-- **VPC**: `vpc_id` (10.0.0.0/16)
-- **Public Subnet**: `subnet_id` (10.0.1.0/24) in us-east-1b
-- **Internet Gateway**: `igw_id`
-- **Route Table**: `rtb_id`
-- **Security Group**: `sg_id`
+- **VPC**: `ecsVpc` (10.0.0.0/16)
+  - DNS Support: Enabled
+  - DNS Hostnames: Enabled
+  - Tag: `Name=ecs-vpc`
+- **Public Subnet**: `ecsPublicSubnet` (10.0.1.0/24)
+  - Auto-assign Public IP: Enabled
+  - Tag: `Name=ecs-public-subnet`
+- **Internet Gateway**: `ecsInternetGateway`
+  - Attached to VPC
+  - Tag: `Name=ecs-igw`
+- **Route Table**: `ecsRouteTable`
+  - Default route: 0.0.0.0/0 → Internet Gateway
+  - Tag: `Name=ecs-route-table`
+- **Security Group**: `ecsSecurityGroup`
+  - Description: "Allow HTTP and SSH traffic"
+  - Tag: `Name=ecs-security-group`
 
 ### Security Configuration
 
